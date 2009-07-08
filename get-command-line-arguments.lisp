@@ -8,7 +8,7 @@
 ;;;                                                                  ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-#+xcvb (module (:depends-on ((:asdf "cl-launch") "pkgdcl")))
+#+xcvb (module (:depends-on ("cl-launch" "pkgdcl")))
 
 (in-package :command-line-arguments)
 
