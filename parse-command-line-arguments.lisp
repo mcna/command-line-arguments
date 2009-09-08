@@ -12,6 +12,7 @@
 
 (in-package :command-line-arguments)
 
+;;(declaim (optimize (speed 1) (safety 3) (debug 3)))
 
 (defvar *command-line-arguments* nil
   "a list of strings, the arguments passed to the program on its command-line,
@@ -70,42 +71,48 @@ or what's currently left of them as they are processed")
 ;; to bind when parsing options for this specification, the values to which to bind them,
 ;; and a list of finalizers to run after the parsing is done.
 
-(defun make-option-action (p name &key (action nil actionp) list optional &allow-other-keys)
+(defun make-option-action (p name
+                           &key (action nil actionp) list optional
+                           (initial-value nil initial-value-p) &allow-other-keys)
 
   "This is called for one option specification.
    P is the hash table of actions.  NAME is the first name of this option, a string
    or a character.  The keywords are option options for this option specification."
 
-  (let ((actual-action
-         ;; This is usually the same as ACTION, but if ACTION is #'FOO,
-         ;; then it's the symbol-function of FOO, and if no action is
-         ;; provided, it's a keyword named NAME.
-         (cond
-           ((and (consp action) (eq 'function (car action))
-                 (consp (cdr action)) (null (cddr action)))
-            (symbol-function (cadr action)))
-           (actionp
-            action)
-           (t
-	    (intern (string-upcase name) :keyword)))))
-    ;; If the :LIST option is not specified, just return the actual-action.
-    (if list
-      (destructuring-bind (&key initial-contents (symbol (gensym (string-upcase name))))
-	  (and (listp list) list)
-	(let ((final-action #'(lambda ()
-				(let ((value (symbol-value symbol)))
-				  (unless (or optional value)
-				    (error "No option ~A defined" (option-name name)))
-				  (command-line-action actual-action (reverse value))))))
-	  (push symbol (gethash :local-symbols p))
-	  (push (reverse initial-contents) (gethash :local-values p))
-	  (push final-action (gethash :finalizers p))
-	  #'(lambda (value)
-	      (case value
-		((nil) (set symbol nil))
-		((t)   (error "Option ~A requires a parameter" (option-name name)))
-		(otherwise (push value (symbol-value symbol)))))))
-      actual-action)))
+  (let* ((actual-action
+          ;; This is usually the same as ACTION, but if ACTION is #'FOO,
+          ;; then it's the symbol-function of FOO, and if no action is
+          ;; provided, it's a keyword named NAME.
+          (cond
+            ((and (consp action) (eq 'function (car action))
+                  (consp (cdr action)) (null (cddr action)))
+             (symbol-function (cadr action)))
+            (actionp
+             action)
+            (t
+             (intern (string-upcase name) :keyword))))
+         (option-action
+          ;; If the :LIST option is not specified, just return the actual-action.
+          (if list
+              (destructuring-bind (&key initial-contents (symbol (gensym (string-upcase name))))
+                  (and (listp list) list)
+                (let ((final-action #'(lambda ()
+                                        (let ((value (symbol-value symbol)))
+                                          (unless (or optional value)
+                                            (error "No option ~A defined" (option-name name)))
+                                          (command-line-action actual-action (reverse value))))))
+                  (push symbol (gethash :local-symbols p))
+                  (push (reverse initial-contents) (gethash :local-values p))
+                  (push final-action (gethash :finalizers p))
+                  #'(lambda (value)
+                      (case value
+                        ((nil) (set symbol nil))
+                        ((t)   (error "Option ~A requires a parameter" (option-name name)))
+                        (otherwise (push value (symbol-value symbol)))))))
+              actual-action)))
+    (when initial-value-p
+      (push (list actual-action initial-value) (gethash :initializers p)))
+    option-action))
 
 
 (defun prepare-command-line-options-specification (specification)
@@ -120,41 +127,45 @@ or what's currently left of them as they are processed")
      (let ((p (make-hash-table :test 'equal)))
        (dolist (spec specification)
          (destructuring-bind (names &rest option-options
-                                    &key type optional list negation
+                                    &key type optional list negation (initial-value nil initial-value-p)
                                     action documentation negation-documentation)
              spec
-           (declare (ignorable action documentation negation-documentation))
+           (declare (ignorable action initial-value documentation negation-documentation))
+           (when initial-value-p
+             (setf optional t)
+             (when list
+               (error "Invalid option spec ~S: can't be a list and have an initial-value" spec)))
            (when list
              (unless (member type '(integer string))
-               (error "option specification wants list but doesn't specify string or integer")))
+               (error "option specification ~S wants list but doesn't specify string or integer" spec)))
            (let* ((namelist (if (listp names) names (list names)))
                   (firstname (car namelist))
                   (pos-action (apply 'make-option-action p firstname option-options)))
              ;; For each name of this spec, put an entry into the hash table
              ;; mapping that name to a vector of the action, the type, and
              ;; whether it's optional.
-             (loop with spec = (vector pos-action type (and optional (not list)))
-                   for name in namelist do
+             (loop :with spec = (vector pos-action type (and optional (not list)))
+                   :for name :in namelist :do
                    (setf (gethash name p) spec))
              ;; Deal with negation.
              (when (or (eq type 'boolean) list optional)
                (let ((neg-action #'(lambda (value)
                                      (command-line-action pos-action (not value))))
                      (neg-names (make-negated-names namelist negation)))
-                 (loop with spec = (vector neg-action nil nil nil)
-                       for name in neg-names do
-                       (setf (gethash name p) spec)))))))
+                 (loop :with spec = (vector neg-action nil nil nil)
+                   :for name :in neg-names :do
+                   (setf (gethash name p) spec)))))))
        p))))
 
 (defun make-negated-names (namelist &optional negation)
   (let ((negation-list (if (listp negation) negation (list negation))))
-    (loop for name in namelist
-          when (stringp name) do
-          (push (concatenate 'string "no-" name) negation-list)
-          (when (and (<= 7 (length name))
-                     (string= "enable-" (subseq name 0 7)))
-            (push (concatenate 'string "disable-" (subseq name 7 nil))
-                  negation-list)))
+    (loop :for name :in namelist
+      :when (stringp name) :do
+      (push (concatenate 'string "no-" name) negation-list)
+      (when (and (<= 7 (length name))
+                 (string= "enable-" (subseq name 0 7)))
+        (push (concatenate 'string "disable-" (subseq name 7 nil))
+              negation-list)))
     negation-list))
 
 (defun command-line-option-specification (option)
@@ -283,23 +294,25 @@ or what's currently left of them as they are processed")
   (progv
       (gethash :local-symbols *command-line-option-specification*)
       (gethash :local-values *command-line-option-specification*)
-    (loop for arg = (pop *command-line-arguments*) do
+    (loop :for (action parameter) :in (gethash :initializers *command-line-option-specification*)
+      :do (command-line-action action parameter))
+    (loop :for arg = (pop *command-line-arguments*) :do
       (cond
 	((or (null arg) (option-end-p arg))
 	 (return))
 	((short-option-p arg)
-	 (loop for c across (subseq arg 1 nil) do
+	 (loop :for c :across (subseq arg 1 nil) :do
 	   (process-short-option c)))
 	((negated-short-option-p arg)
-	 (loop for c across (subseq arg 1 nil) do
+	 (loop :for c :across (subseq arg 1 nil) :do
 	   (process-short-option c :negated t)))
 	((long-option-p arg)
 	 (process-long-option arg))
 	(t
          (push arg *command-line-arguments*)
 	 (return))))
-    (loop for f in (gethash :finalizers *command-line-option-specification*)
-          do (funcall f))))
+    (loop :for f :in (gethash :finalizers *command-line-option-specification*)
+          :do (funcall f))))
 
 (defun process-command-line-options (specification command-line)
 
@@ -327,12 +340,15 @@ or what's currently left of them as they are processed")
   ;; TODO: be clever when trying to align stuff vertically
   (loop :for spec :in specification :do
         (destructuring-bind (names &key negation documentation negation-documentation
-                                   type optional list &allow-other-keys) spec
+                                   type optional list (initial-value nil initial-value-p) &allow-other-keys) spec
           (declare (ignorable negation documentation negation-documentation type optional list))
+          (unless (consp names)
+            (setf names (list names)))
           (when documentation
-            (format stream " ~25A  ~A~%"
+            (format stream "~& ~25A  ~A~:[~*~; (default: ~S)~]~%"
                     (format nil "~{ ~A~}" (mapcar 'option-name names))
-                    documentation))
+                    documentation
+                    initial-value-p initial-value))
           (when negation-documentation
             (format stream " ~25A  ~A~%"
                     (format nil "~{ ~A~}" (mapcar 'option-name (make-negated-names names negation)))
@@ -342,22 +358,24 @@ or what's currently left of them as they are processed")
 
 (defparameter *opt-spec*
  '((("all" #\a) :type boolean :documentation "do it all")
+   ("blah" :type string :initial-value "blob" :documentation "blah")
    (("verbose" #\v) :type boolean :documentation "include debugging output")
    (("file" #\f) :type string :documentation "read from file instead of standard input")
    (("xml-port" #\x) :type integer :optional t :documentation "specify port for an XML listener")
+   (("http-port" #\h) :type integer :initial-value 80 :documentation "specify port for an HTTP listener")
    ("enable-cache" :type boolean :documentation "enable cache for queries")
    ("path" :type string :list t :optional t :documentation "add given directory to the path")
    ("port" :type integer :list (:initial-contents (1 2)) :optional t :documentation "add a normal listen on given port")))
 
-(defun foo (args &key all verbose file xml-port enable-cache port path)
-  (list args :all all :verbose verbose :file file :xml-port xml-port
+(defun foo (args &key all verbose file xml-port enable-cache port path http-port blah)
+  (list args :all all :verbose verbose :file file :xml-port xml-port :http-port http-port :blah blah
         :enable-cache enable-cache :port port :path path))
 
 (multiple-value-bind (options arguments)
     (process-command-line-options
      *opt-spec*
      '("--all" "--no-verbose" "--file" "foo" "-f" "-v" "-v"
-       "-x" "--disable-cache"
+       "-x" "--disable-cache" "-h" "8080"
        "--no-port" "--port" "3" "--port=4"
        "--path" "/foo" "--path" "/bar"
        "--" "--foo" "bar" "baz"))
