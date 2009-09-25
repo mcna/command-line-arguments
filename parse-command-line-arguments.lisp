@@ -369,20 +369,24 @@ or what's currently left of them as they are processed")
           (unless (consp names)
             (setf names (list names)))
           (when documentation
-            (format stream "~& ~25A  ~A~:[~*~; (default: ~S)~]~%"
+            (format stream "~& ~32A ~8A ~@<~@;~A~@:>"
                     (format nil "~{ ~A~}" (mapcar 'option-name names))
-                    documentation
-                    initial-value-p initial-value))
+                    (string-downcase type)
+                    documentation)
+            (format stream "~:[~*~; (default: ~S)~]~%" initial-value-p initial-value))
           (when negation-documentation
-            (format stream " ~25A  ~A~%"
+            (format stream " ~32A ~8A ~@<~@;~A~@:>~%"
                     (format nil "~{ ~A~}" (mapcar 'option-name (make-negated-names names negation)))
+                    (string-downcase type)
                     negation-documentation)))))
 
 #| Testing:
 
 (defparameter *opt-spec*
  '((("all" #\a) :type boolean :documentation "do it all")
-   ("blah" :type string :initial-value "blob" :documentation "blah")
+   ("blah" :type string :initial-value "blob" :documentation "This is a very long multi line documentation.
+The function SHOW-OPTION-HELP should display this properly indented, that is
+all lines should start at the same column.")
    (("verbose" #\v) :type boolean :documentation "include debugging output")
    (("file" #\f) :type string :documentation "read from file instead of standard input")
    (("xml-port" #\x) :type integer :optional t :documentation "specify port for an XML listener")
