@@ -1,6 +1,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;                                                                  ;;;
-;;; Confidential and proprietary information of ITA Software, Inc.   ;;;
+;;; Free Software available under an MIT-style license. See LICENSE  ;;;
 ;;;                                                                  ;;;
 ;;; Copyright (c) 2009 ITA Software, Inc.  All rights reserved.      ;;;
 ;;;                                                                  ;;;

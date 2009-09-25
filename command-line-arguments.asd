@@ -5,12 +5,12 @@
 ;;;                                                                  ;;;
 ;;; Copyright (c) 2008-2009 ITA Software, Inc.  All rights reserved. ;;;
 ;;;                                                                  ;;;
-;;; Original authors: Francois-Rene Rideau, Dan Weinreb              ;;;
+;;; Original authors: Francois-Rene Rideau                           ;;;
 ;;;                                                                  ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (asdf:defsystem :command-line-arguments
-  :author ("Francois-Rene Rideau" "Dan Weinreb")
+  :author ("Francois-Rene Rideau")
   :maintainer "Francois-Rene Rideau"
   :licence "MIT"
   :description "small library to deal with command-line arguments"

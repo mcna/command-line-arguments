@@ -1,6 +1,4 @@
-#+xcvb
-(module
- (:description "package for command-line-arguments"))
+#+xcvb (module ())
 
 (cl:defpackage :command-line-arguments
   (:use :cl)
