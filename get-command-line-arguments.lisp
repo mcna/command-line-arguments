@@ -14,19 +14,17 @@
 
 (in-package :command-line-arguments)
 
-#+cl-launch
 (defun get-command-line-arguments ()
-  cl-launch:*arguments*)
-
-#-cl-launch
-(defun get-command-line-arguments ()
-  #+sbcl (cdr sb-ext:*posix-argv*)
-  #+clozure (cdr (ccl::command-line-arguments))
-  #+gcl (cdr si:*command-args*)
-  #+ecl (loop for i from 1 below (si:argc) collect (si:argv i))
-  #+cmu (cdr extensions:*command-line-strings*)
-  #+allegro (cdr (sys:command-line-arguments))
-  #+lispworks (cdr sys:*line-arguments-list*)
-  #+clisp ext:*args*
-  #-(or sbcl clozure gcl ecl cmu allegro lispworks clisp)
-  (error "get-command-line-arguments not supported for your implementation"))
+  (if (find-package :cl-launch)
+    (symbol-value (find-symbol (string :*arguments*) :cl-launch))
+    (progn
+      #+sbcl (cdr sb-ext:*posix-argv*)
+      #+clozure (cdr (ccl::command-line-arguments))
+      #+gcl (cdr si:*command-args*)
+      #+ecl (loop for i from 1 below (si:argc) collect (si:argv i))
+      #+cmu (cdr extensions:*command-line-strings*)
+      #+allegro (cdr (sys:command-line-arguments))
+      #+lispworks (cdr sys:*line-arguments-list*)
+      #+clisp ext:*args*
+      #-(or sbcl clozure gcl ecl cmu allegro lispworks clisp)
+      (error "get-command-line-arguments not supported for your implementation"))))
