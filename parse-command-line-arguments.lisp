@@ -360,7 +360,7 @@ or what's currently left of them as they are processed")
 (defun compute-and-process-command-line-options (specification)
   (process-command-line-options specification (get-command-line-arguments)))
 
-(defun show-option-help (specification &optional (stream *standard-output*))
+(defun show-option-help (specification &key (stream *standard-output*) sort-names)
   ;; TODO: be clever when trying to align stuff vertically
   (loop :for spec :in specification :do
         (destructuring-bind (names &key negation documentation negation-documentation
@@ -368,17 +368,22 @@ or what's currently left of them as they are processed")
           (declare (ignorable negation documentation negation-documentation type optional list))
           (unless (consp names)
             (setf names (list names)))
-          (when documentation
-            (format stream "~& ~32A ~8A ~@<~@;~A~@:>"
-                    (format nil "~{ ~A~}" (mapcar 'option-name names))
-                    (string-downcase type)
-                    documentation)
-            (format stream "~:[~*~; (default: ~S)~]~%" initial-value-p initial-value))
-          (when negation-documentation
-            (format stream " ~32A ~8A ~@<~@;~A~@:>~%"
-                    (format nil "~{ ~A~}" (mapcar 'option-name (make-negated-names names negation)))
-                    (string-downcase type)
-                    negation-documentation)))))
+          (flet ((option-names (names)
+                   (let ((n (mapcar 'option-name names)))
+                     (if sort-names
+                       (stable-sort n #'< :key #'length)
+                       n))))
+            (when documentation
+              (format stream "~& ~32A ~8A ~@<~@;~A~@:>"
+                      (format nil "~{ ~A~}" (option-names names))
+                      (string-downcase type)
+                      documentation)
+              (format stream "~:[~*~; (default: ~S)~]~%" initial-value-p initial-value))
+            (when negation-documentation
+              (format stream " ~32A ~8A ~@<~@;~A~@:>~%"
+                      (format nil "~{ ~A~}" (option-names (make-negated-names names negation)))
+                      (string-downcase type)
+                      negation-documentation))))))
 
 #| Testing:
 
