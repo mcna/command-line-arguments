@@ -360,9 +360,24 @@ or what's currently left of them as they are processed")
 (defun compute-and-process-command-line-options (specification)
   (process-command-line-options specification (get-command-line-arguments)))
 
+(defun split-sequence (sequence delimiter)
+  (loop
+     :with index = 0
+     :for match = (position delimiter sequence :start index)
+     :when (and match
+                (not (= index match)))
+     :collect (subseq sequence index match)
+     :when match
+     :do (setf index (1+ match))
+     :unless (or match
+                 (= index (length sequence)))
+     :collect (subseq sequence index)
+     :while match))
+
 (defun show-option-help (specification &key (stream *standard-output*) sort-names)
-  ;; TODO: be clever when trying to align stuff vertically
-  (loop :for spec :in specification :do
+  ;; TODO: be clever when trying to align stuff horizontally
+  (loop :with *print-right-margin* = (max (or *print-right-margin* 0) 100)
+        :for spec :in specification :do
         (destructuring-bind (names &key negation documentation negation-documentation
                                    type optional list (initial-value nil initial-value-p) &allow-other-keys) spec
           (declare (ignorable negation documentation negation-documentation type optional list))
@@ -374,24 +389,22 @@ or what's currently left of them as they are processed")
                        (stable-sort n #'< :key #'length)
                        n))))
             (when documentation
-              (format stream "~& ~32A ~8A ~@<~@;~A~@:>"
+              (format stream "~& ~32A ~8A ~@<~@;~{~A ~}~@:>"
                       (format nil "~{ ~A~}" (option-names names))
                       (string-downcase type)
-                      documentation)
+                      (split-sequence documentation #\Space))
               (format stream "~:[~*~; (default: ~S)~]~%" initial-value-p initial-value))
             (when negation-documentation
-              (format stream " ~32A ~8A ~@<~@;~A~@:>~%"
+              (format stream " ~32A ~8A ~@<~@;~{~A ~}~@:>~%"
                       (format nil "~{ ~A~}" (option-names (make-negated-names names negation)))
                       (string-downcase type)
-                      negation-documentation))))))
+                      (split-sequence negation-documentation #\Space)))))))
 
 #| Testing:
 
 (defparameter *opt-spec*
  '((("all" #\a) :type boolean :documentation "do it all")
-   ("blah" :type string :initial-value "blob" :documentation "This is a very long multi line documentation.
-The function SHOW-OPTION-HELP should display this properly indented, that is
-all lines should start at the same column.")
+   ("blah" :type string :initial-value "blob" :documentation "This is a very long multi line documentation. The function SHOW-OPTION-HELP should display this properly indented, that is all lines should start at the same column.")
    (("verbose" #\v) :type boolean :documentation "include debugging output")
    (("file" #\f) :type string :documentation "read from file instead of standard input")
    (("xml-port" #\x) :type integer :optional t :documentation "specify port for an XML listener")
