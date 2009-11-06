@@ -241,6 +241,7 @@ or what's currently left of them as they are processed")
 
 (defun option-name (option-designator)
   (etypecase option-designator
+    ((eql #\Space) "  ") ; the same number of spaces just without the #\-
     (character (format nil "-~A" option-designator))
     (string    (format nil "--~A" option-designator))))
 
