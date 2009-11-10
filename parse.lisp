@@ -8,11 +8,9 @@
 ;;;                                                                  ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-#+xcvb (module (:depends-on ("get-command-line-arguments")))
+#+xcvb (module (:depends-on ("pkgdcl")))
 
 (in-package :command-line-arguments)
-
-;;(declaim (optimize (speed 1) (safety 3) (debug 3)))
 
 (defvar *command-line-arguments* nil
   "a list of strings, the arguments passed to the program on its command-line,
@@ -358,79 +356,3 @@ or what's currently left of them as they are processed")
     (do-process-command-line-options)
     (values *command-line-options* *command-line-arguments*)))
 
-(defun compute-and-process-command-line-options (specification)
-  (process-command-line-options specification (get-command-line-arguments)))
-
-(defun split-sequence (sequence delimiter)
-  (loop
-     :with index = 0
-     :for match = (position delimiter sequence :start index)
-     :when (and match
-                (not (= index match)))
-     :collect (subseq sequence index match)
-     :when match
-     :do (setf index (1+ match))
-     :unless (or match
-                 (= index (length sequence)))
-     :collect (subseq sequence index)
-     :while match))
-
-(defun show-option-help (specification &key (stream *standard-output*) sort-names)
-  ;; TODO: be clever when trying to align stuff horizontally
-  (loop :with *print-right-margin* = (max (or *print-right-margin* 0) 100)
-        :for spec :in specification :do
-        (destructuring-bind (names &key negation documentation negation-documentation
-                                   type optional list (initial-value nil initial-value-p) &allow-other-keys) spec
-          (declare (ignorable negation documentation negation-documentation type optional list))
-          (unless (consp names)
-            (setf names (list names)))
-          (flet ((option-names (names)
-                   (let ((n (mapcar 'option-name names)))
-                     (if sort-names
-                       (stable-sort n #'< :key #'length)
-                       n))))
-            (when documentation
-              (format stream "~& ~32A ~8A ~@<~@;~{~A ~}~@:>"
-                      (format nil "~{ ~A~}" (option-names names))
-                      (string-downcase type)
-                      (split-sequence documentation #\Space))
-              (format stream "~:[~*~; (default: ~S)~]~%" initial-value-p initial-value))
-            (when negation-documentation
-              (format stream " ~32A ~8A ~@<~@;~{~A ~}~@:>~%"
-                      (format nil "~{ ~A~}" (option-names (make-negated-names names negation)))
-                      (string-downcase type)
-                      (split-sequence negation-documentation #\Space)))))))
-
-#| Testing:
-
-(defparameter *opt-spec*
- '((("all" #\a) :type boolean :documentation "do it all")
-   ("blah" :type string :initial-value "blob" :documentation "This is a very long multi line documentation. The function SHOW-OPTION-HELP should display this properly indented, that is all lines should start at the same column.")
-   (("verbose" #\v) :type boolean :documentation "include debugging output")
-   (("file" #\f) :type string :documentation "read from file instead of standard input")
-   (("xml-port" #\x) :type integer :optional t :documentation "specify port for an XML listener")
-   (("http-port" #\h) :type integer :initial-value 80 :documentation "specify port for an HTTP listener")
-   ("enable-cache" :type boolean :documentation "enable cache for queries")
-   ("path" :type string :list t :optional t :documentation "add given directory to the path")
-   ("port" :type integer :list (:initial-contents (1 2)) :optional t :documentation "add a normal listen on given port")))
-
-(defun foo (args &key all verbose file xml-port enable-cache port path http-port blah)
-  (list args :all all :verbose verbose :file file :xml-port xml-port :http-port http-port :blah blah
-        :enable-cache enable-cache :port port :path path))
-
-(multiple-value-bind (options arguments)
-    (process-command-line-options
-     *opt-spec*
-     '("--all" "--no-verbose" "--file" "foo" "-f" "-v" "-v"
-       "-x" "--disable-cache" "-h" "8080"
-       "--no-port" "--port" "3" "--port=4"
-       "--path" "/foo" "--path" "/bar"
-       "--" "--foo" "bar" "baz"))
-  (write arguments :pretty nil) (terpri)
-  (write options :pretty nil) (terpri)
-  (write (apply 'foo arguments options) :pretty nil)
-  (terpri))
-
-(show-option-help *opt-spec*)
-
-|#

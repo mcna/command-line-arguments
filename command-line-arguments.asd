@@ -18,5 +18,6 @@
   ;;:depends-on (:cl-launch) ; cl-launch affects the build too much for unsuspecting ASDF users.
   :components
   ((:file "pkgdcl")
-   (:file "get-command-line-arguments" :depends-on ("pkgdcl"))
-   (:file "parse-command-line-arguments" :depends-on ("get-command-line-arguments"))))
+   (:file "argv" :depends-on ("pkgdcl"))
+   (:file "parse" :depends-on ("pkgdcl"))
+   (:file "help" :depends-on ("pkgdcl"))))

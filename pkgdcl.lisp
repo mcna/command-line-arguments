@@ -9,5 +9,6 @@
    #:process-command-line-options
    #:compute-and-process-command-line-options
    #:get-command-line-arguments
+   #:handle-command-line
    #:show-option-help
    ))
