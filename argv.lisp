@@ -29,6 +29,8 @@
       #-(or sbcl clozure gcl ecl cmu allegro lispworks clisp)
       (error "get-command-line-arguments not supported for your implementation"))))
 
+(declaim (ftype (function (t t) (values t t)) process-command-line-options))
+
 (defun compute-and-process-command-line-options (specification)
   (process-command-line-options specification (get-command-line-arguments)))
 

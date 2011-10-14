@@ -14,3 +14,11 @@
   Or else, build a general tool to display stuff on a terminal
   while respecting terminal width.
   Or output HTML and use lynx -dump or a browser.
+
+ * BUG: Apparently, when there is a missing string argument to a string option
+  as in --string --bar we assign T to string argument --string instead of erroring out.
+
+ * Have an actual test suite. Sigh.
+
+ * Similar bug to fix, keeping a regression test:
+  (process-command-line-options '(("export-model" :type boolean :optional nil)) '("--export-model" "no"))
