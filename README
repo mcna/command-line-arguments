@@ -1,0 +1,41 @@
+COMMAND-LINE-ARGUMENTS
+
+
+HOMEPAGE
+
+	http://common-lisp.net/project/qitab/
+
+
+SEE ALSO
+
+For a fancier take on the same general idea, see Didier Verna's CLON:
+	http://www.lrde.epita.fr/~didier/software/lisp/clon.php
+
+By comparison, this library has fewer features but is slightly more portable.
+
+
+TODO
+
+* Migrate to CLON?
+
+* add documentation besides the comments in the code.
+
+* add counter variables for verbosity flags:
+  -v -v -v adds 3 to the default value.
+  With minimum and maximum value caps in the finalizer.
+
+* enhance layout of self-documentation
+  Have an automatic layout strategy for self-documentation.
+  Maybe output the kind of things that man(1) expects, groff(7),
+  then actually integrate with the man system.
+  Or else, build a general tool to display stuff on a terminal
+  while respecting terminal width.
+  Or output HTML and use lynx -dump or a browser.
+
+* BUG: Apparently, when there is a missing string argument to a string option
+  as in --string --bar we assign T to string argument --string instead of erroring out.
+
+* Have an actual test suite. Sigh.
+
+* Similar bug to fix, keeping a regression test:
+  (process-command-line-options '(("export-model" :type boolean :optional nil)) '("--export-model" "no"))

@@ -2,7 +2,8 @@
 ;;;                                                                  ;;;
 ;;; Free Software available under an MIT-style license. See LICENSE  ;;;
 ;;;                                                                  ;;;
-;;; Copyright (c) 2003-2009 ITA Software, Inc.  All rights reserved. ;;;
+;;; Copyright (c) 2003-2011 ITA Software, Inc.  All rights reserved. ;;;
+;;; Copyright (c) 2011-2012 Google, Inc.  All rights reserved.       ;;;
 ;;;                                                                  ;;;
 ;;; Original author: Francois-Rene Rideau                            ;;;
 ;;;                                                                  ;;;
@@ -81,11 +82,12 @@ or what's currently left of them as they are processed")
 (defun make-option-action (p name
                            &key (action nil actionp) list optional
                            (initial-value nil initial-value-p) &allow-other-keys)
-
-  "This is called for one option specification.
-   P is the hash table of actions.  NAME is the first name of this option, a string
-   or a character.  The keywords are option options for this option specification."
-
+  "This is called for each option specification when preparing for parsing, and
+   computes the action function to call (with optional value if provided)
+   when the option is found on a command-line.
+   P is the hash-table of actions.
+   NAME is the first name of this option, a string or a character.
+   The keywords are option options for this option specification."
   (let* ((actual-action (apply #'actual-action-from-spec name
                                (when actionp (list :action action)))))
     (when initial-value-p
@@ -148,11 +150,11 @@ or what's currently left of them as they are processed")
     (function (funcall action value))))
 
 (defun prepare-command-line-options-specification (specification)
-
-  "Given a SPECIFICATION, return a hash table with one entry
-   whose key is the name and whose value is a vector of the action,
-   the type, and whether it's optional."
-
+  "Given a SPECIFICATION, return a hash-table mapping
+   option names to a vector of
+   the action function to call when encountering the option,
+   the type of option arguments accepted, and
+   whether the option is optional."
   (etypecase specification
     (hash-table specification)
     (list
@@ -203,26 +205,20 @@ or what's currently left of them as they are processed")
     (if v (values t (svref v 0) (svref v 1) (svref v 2)) (values nil nil nil nil))))
 
 (defun short-option-p (arg)
-
-  "ARG is a string.  Is it like -A, but not --?"
-
+  "ARG is a string.  Is it like -X, but not -- ?"
   (check-type arg simple-string)
   (and (<= 2 (length arg))
        (char= #\- (schar arg 0))
        (char/= #\- (schar arg 1))))
 
 (defun negated-short-option-p (arg)
-
-  "ARG is a string.  Is it like +A?"
-
+  "ARG is a string.  Is it like +X ?"
   (check-type arg simple-string)
   (and (<= 2 (length arg))
        (char= #\+ (schar arg 0))))
 
 (defun long-option-p (arg)
-
-  "ARG is a string.  Is it like --A?"
-
+  "ARG is a string.  Is it like --XXX ?"
   (check-type arg simple-string)
   (and (<= 3 (length arg))
        (char= #\- (schar arg 0) (schar arg 1))))
@@ -244,11 +240,10 @@ or what's currently left of them as they are processed")
     (string    (format nil "--~A" option-designator))))
 
 (defun coerce-option-parameter (option string type)
-
-  "Given a STRING option value and a TYPE, return the value as
-   a Lisp object.  OPTION is the name of the option, just for
-   error messages."
-
+  "Given a STRING option argument and a TYPE of argument,
+   return the argument value as a Lisp object.
+   OPTION is the name of the option to which the argument is to be passed,
+   for the sake of error messages."
   (flet ((fail ()
            (error "parameter ~A for option ~A not of type ~A" string (option-name option) type)))
     (ecase type
@@ -310,10 +305,8 @@ or what's currently left of them as they are processed")
       (process-option name validp action parameter type optional))))
 
 (defun do-process-command-line-options ()
-
   "Remove all the options and values from *COMMAND-LINE-ARGUMENTS*.
    Process each option."
-
   (progv
       (gethash :local-symbols *command-line-option-specification*)
       (gethash :local-values *command-line-option-specification*)
@@ -338,14 +331,11 @@ or what's currently left of them as they are processed")
       :do (apply function parameters))))
 
 (defun process-command-line-options (specification command-line)
-
-  "SPECIFICATION is a list as described above.  COMMAND-LINE
-   is the list of tokens to be parsed.  Return two values:
-   a list of alternating actions and values,
-   and a list of the rest of the arguments after the
-   various options and their values (a tail of the
-   COMMAND-LINE argument)."
-
+  "SPECIFICATION is a list as described above.
+   COMMAND-LINE is the list of tokens to be parsed.
+   Return two values:
+   a list of alternating actions and values, and
+   a list of the arguments remaining after the various specified options."
   (let*
       ((*command-line-option-specification*
         ;; The hash table describing each name.
