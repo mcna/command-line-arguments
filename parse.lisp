@@ -178,7 +178,7 @@ or what's currently left of them as they are processed")
              ;; whether it's optional.
              (loop :with spec = (vector pos-action type (and optional (not list)))
                    :for name :in namelist :do
-                   (setf (gethash name p) spec))
+                   (setf (gethash (string-downcase name) p) spec))
              ;; Deal with negation.
              (when (or (eq type 'boolean) list optional)
                (let ((neg-action #'(lambda (value)
